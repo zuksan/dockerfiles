@@ -1,0 +1,1 @@
+sudo docker run -itd -P --privileged --name="basic_ssh" basic_ssh /bin/bash
