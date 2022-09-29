@@ -1,6 +1,5 @@
 FROM ubuntu:18.04
-
-LABEL author="zuksan"
+LABEL author="zuksanwang"
 
 RUN apt update && \
     apt install -y vim && \
@@ -20,11 +19,11 @@ RUN apt install -y software-properties-common && \
 
 # libssh 依赖的库：zlib(libz), gcrypt,
 RUN cd ~ && git clone https://github.com/madler/zlib.git -b v1.2.12 && \
-    cd zlib && ./configure; make test && cd ~
+    cd zlib && ./configure; make test && make install && cd ~
 
 RUN apt install -y libgcrypt20-dev
 # 20220816 为了简化配置，以下库采用apt安装==========
-apt install -y libgcrypt20-dev
+# apt install -y libgcrypt20-dev
 
 # # gcrypt 归属于 gnupg，[The GnuPG Repositories](https://git.gnupg.org/)
 # git clone https://dev.gnupg.org/source/libgcrypt.git -b libgcrypt-1.10.1
@@ -77,13 +76,38 @@ RUN git clone https://git.cryptomilk.org/projects/cmocka.git/ -b cmocka-1.1.5  &
 # ---源码构建后仍然找不到，只能用apt安装了
 # =========================================
 
-RUN apt install -y libssl-dev  && \
-    apt install -y openssh-server  && \
-    git clone https://git.libssh.org/projects/libssh.git -b libssh-0.9.6  && \
+RUN apt install -y libssl-dev \
+    # Heimdal is an implementation of Kerberos 5, freely available under a three clause BSD style license.
+    #   https://github.com/heimdal/heimdal/blob/master/tools/heimdal-gssapi.pc.in
+    heimdal-dev \
+    libgssapi3-heimdal \
+    # 参见 cmake/Modules/FindGSSAPI.cmake ；
+    #   目前调好的这个版本没有使用第95行else分之后 ROKEN 的部分；
+    #   而是依赖于89行if中的部分——使用 pkg-config 获得 GSSAPI_ROOT_DIR 和 _GSSAPI_LIBDIR
+    pkg-config \
+    # libssh also need openssh-server
+    openssh-server && \
+    cd ~ && git clone https://git.libssh.org/projects/libssh.git -b libssh-0.9.6  && \
     mkdir libssh/build  && \
-    cd libssh/build && cmake -DUNIT_TESTING=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Debug -DWITH_SERVER=ON -DSERVER_TESTING=ON ..
+    cd libssh/build && \
+    cmake -DUNIT_TESTING=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Debug -DWITH_SERVER=ON -DSERVER_TESTING=ON -DWITH_GSSAPI=ON -DWITH_DEBUG_PACKET=ON .. && \
+    make -j12 && make install
 
+# 使用 WITH_GSSAPI, 才会构建 samplesshd-cb 等例子
 # libssh 内部有调试宏，可以使用 -DWITH_DEBUG_PACKET=ON 用来添加打印信息
+
+# config ssh server
+RUN cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bkp && \
+    sed -i '$a \
+    PermitRootLogin yes\n\
+    ClientAliveInterval 60\n\
+    ClientAliveCountMax 3\n' /etc/ssh/sshd_config
+
+ENTRYPOINT \
+    # start ssh
+    service ssh restart && \
+    # keep running
+    /bin/bash
 
 EXPOSE 21
 EXPOSE 22
