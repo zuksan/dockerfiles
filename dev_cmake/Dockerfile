@@ -11,5 +11,18 @@ RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list &
         # mbedtls
         libmbedtls-dev=2.28.0-1build1
 
-# keep running
-CMD [ "/bin/bash" ]
+# config ssh server
+RUN apt install -y openssh-server && \
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bkp && \
+    sed -i '$a \
+    PermitRootLogin yes\n\
+    ClientAliveInterval 60\n\
+    ClientAliveCountMax 3\n' /etc/ssh/sshd_config
+
+ENTRYPOINT \
+    # start ssh
+    service ssh restart && \
+    # keep running
+    /bin/bash
+
+EXPOSE 22

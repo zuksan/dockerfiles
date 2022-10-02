@@ -9,5 +9,5 @@ sudo docker build -t dev_cmake .
 ## run
 
 ```bash
-sudo docker run -itd --name="dev_cmake" dev_cmake
+sudo docker run -itd -P --name="dev_cmake" dev_cmake
 ```
