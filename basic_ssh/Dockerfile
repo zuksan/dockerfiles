@@ -1,7 +1,5 @@
 FROM ubuntu:22.04
 
-LABEL author="zuksan"
-
 # update basic programs
 RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list && \
     apt update -y && \
@@ -11,7 +9,8 @@ RUN sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list &
         git vim
 
 # config ssh server
-RUN cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bkp && \
+RUN apt install -y openssh-server && \
+    cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bkp && \
     sed -i '$a \
     PermitRootLogin yes\n\
     ClientAliveInterval 60\n\
